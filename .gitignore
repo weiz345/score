@@ -1,0 +1,28 @@
+# Downloaded portraits, datasets, metadata, models, scores and caches
+/data/
+
+# Local credentials and environment settings
+.env
+.env.*
+!.env.example
+.env-*
+
+# Python build/runtime files and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Local databases, logs and incomplete downloads
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.log
+*.part
+
+# Editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
