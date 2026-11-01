@@ -62,3 +62,51 @@ The remaining scripts preserve earlier collection, source review and import
 experiments. The token-based Instagram API retry is a live request and is not
 an offline test. Keep credentials in the shell environment or ignored
 `.env.local`, never in script source.
+
+## Fast image-first candidate gathering
+
+`python3 research/gather-image-candidates.py` runs 25 surname seeds × four
+regions × Instagram/Facebook/LinkedIn (300 image searches). Use `--queries 12`
+for a smaller smoke batch. It requires `SERPER_API_KEY` and loads the ignored
+`.env.local` settings automatically. Four concurrent API calls return indexed
+images and source URLs together; eight workers download thumbnails. It does
+not fetch every profile page, infer ethnicity, identify faces or call a rating
+API. The first 100 returned images per search are considered (the provider may
+return fewer). Cached search responses and downloaded pictures are reused.
+
+Only canonical account URLs with a downloadable image are retained. A whole
+surname token must appear in the indexed image title. The collector excludes
+post/reel links and LinkedIn company pages. Some profile images are logos,
+covers or other nonportraits; current account identity and image attribution
+remain unverified. Query regions are leads, not proof of residence.
+
+Open `/static/candidate-gathering.html` for the live, paginated gallery with
+platform, queried-region and text filters. It is regenerated from the tracked
+`templates/candidates.html` source. Download `/static/gathered-candidates.csv`;
+raw caches and results live in `data/candidate-collection/` and `data/images/`.
+Generated galleries, metadata exports, images and API credentials remain
+excluded from Git. HTTP 401/402/403/429 stops scheduling new search calls.
+
+The older regional discovery/scoring experiments are preserved separately;
+they are not used by this collector. `score-regional-reviewed.py` and other
+scoring commands make billable API calls and are currently not part of the
+candidate-gathering workflow.
+
+## Reviewed portrait ratings
+
+`prepare-candidate-rating-review.py` freezes the candidate index and makes
+contact sheets. Review each sheet for usable single adult portraits, excluding
+uncertain ages, then record it with `update-candidate-review.py --batch N
+--excluded comma,separated,indices`. This does not verify identity or ethnicity.
+
+`ATTRACTIVENESS_API_TOKEN` authorizes billable calls from
+`python3 research/rank-image-candidates.py --follow-review`. Three workers
+score approved portraits as review proceeds. Identical image bytes reuse a
+cached result; successes persist immediately. Image validation errors remain
+unscored; other API errors stop new submissions. The script regenerates the
+gallery from `templates/candidate-ratings.html`.
+
+Open `/static/candidate-ratings.html` for raw-score ranking, progress and
+filters. `/static/candidate-rating-results.csv` contains all records and their
+review/scoring statuses. The above-7 percentage uses successfully scored
+portraits as its denominator. Images, exports and review data stay ignored.
