@@ -1,0 +1,32 @@
+# Chinese surname examples; reference only, not an ethnicity classifier.
+# Shared spellings and cross-cultural usage do not establish ethnicity.
+Chen — 陈 / 陳
+Wang — 王
+Li — 李
+Zhang — 张 / 張
+Liu — 刘 / 劉
+Yang — 杨 / 楊
+Huang — 黄 / 黃
+Zhao — 赵 / 趙
+Wu — 吴 / 吳
+Zhou — 周
+Xu — 徐
+Sun — 孙 / 孫
+Ma — 马 / 馬
+Zhu — 朱
+Hu — 胡
+Guo — 郭
+He — 何
+Gao — 高
+Lin — 林
+Zheng — 郑 / 鄭
+Luo — 罗 / 羅
+Liang — 梁
+Xie — 谢 / 謝
+Song — 宋
+Tang — 唐
+Han — 韩 / 韓
+Feng — 冯 / 馮
+Deng — 邓 / 鄧
+Cao — 曹
+Peng — 彭

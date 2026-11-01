@@ -1,0 +1,8 @@
+{
+  "undergraduate_completion_year_min": 2020,
+  "undergraduate_completion_year_max": 2025,
+  "missing_education": "include",
+  "infer_age_from_education": false,
+  "infer_ethnicity_from_surname": false,
+  "education_filter_enabled": false
+}

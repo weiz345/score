@@ -26,3 +26,13 @@ venv/
 .DS_Store
 .idea/
 .vscode/
+
+# Generated discovery pages, downloaded profile images and search exports
+/static/*
+!/static/README.md
+
+# Keep research scripts; retain their raw inputs/results only in this checkout
+/research/*
+!/research/*.py
+!/research/check-small-ui.js
+!/research/README.md

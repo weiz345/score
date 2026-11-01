@@ -83,13 +83,103 @@ def collect(profile, image=''):
 @app.get('/')
 def index(): return render_template('index.html')
 
+@app.get('/search')
+def profile_search_page():
+    return render_template('search.html', configured=bool(os.environ.get('SERPER_API_KEY')))
+
+@app.post('/api/profile-search')
+def profile_search():
+    if request.headers.get('Origin') and request.headers['Origin'] != request.host_url.rstrip('/'):
+        return jsonify(error='Cross-origin requests are not allowed'), 403
+    payload = request.get_json(silent=True)
+    query = payload.get('query') if isinstance(payload, dict) else None
+    if not isinstance(query, str) or not 1 <= len(query.strip()) <= 200:
+        return jsonify(error='Enter a name or search query of 1–200 characters.'), 400
+    from profile_search import discover, SearchNotConfigured
+    try:
+        batch = discover(query.strip(), fetch)
+    except SearchNotConfigured as error:
+        return jsonify(error=str(error)), 503
+    except (ValueError, RuntimeError, requests.RequestException):
+        return jsonify(error='The search provider could not complete the request. Check its configuration and quota.'), 502
+    batch_id = uuid.uuid4().hex
+    directory = DATA / 'search'
+    directory.mkdir(exist_ok=True)
+    (directory / (batch_id + '.json')).write_text(json.dumps(batch, indent=2))
+    return jsonify(batch_id=batch_id, **batch)
+
+@app.post('/api/profile-search/import')
+def profile_search_import():
+    if request.headers.get('Origin') and request.headers['Origin'] != request.host_url.rstrip('/'):
+        return jsonify(error='Cross-origin requests are not allowed'), 403
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(error='Provide a search batch and selected profile indices.'), 400
+    batch_id, indices = payload.get('batch_id'), payload.get('indices')
+    if not isinstance(batch_id, str) or len(batch_id) != 32 or any(c not in '0123456789abcdef' for c in batch_id):
+        return jsonify(error='Invalid search batch.'), 400
+    if not isinstance(indices, list) or not 1 <= len(indices) <= 20 or any(type(i) is not int or i < 0 for i in indices):
+        return jsonify(error='Select 1–20 profiles.'), 400
+    path = DATA / 'search' / (batch_id + '.json')
+    if not path.exists():
+        return jsonify(error='Search batch not found. Run the search again.'), 404
+    batch = json.loads(path.read_text())
+    if any(i >= len(batch['profiles']) for i in indices):
+        return jsonify(error='Invalid profile selection.'), 400
+    results = []
+    for i in dict.fromkeys(indices):
+        profile = batch['profiles'][i]['profile_url']
+        try:
+            with db() as con:
+                existing = con.execute('SELECT * FROM pictures WHERE profile_url = ? ORDER BY rowid DESC LIMIT 1', (profile,)).fetchone()
+            reused = existing is not None
+            picture = dict(existing) if reused else collect(profile)
+            result = dict(ok=True, reused=reused, **picture)
+        except (ValueError, OSError, requests.RequestException, Image.DecompressionBombError):
+            result = dict(ok=False, profile_url=profile, error='Public picture unavailable or blocked; no restrictions were bypassed.')
+        result['source_url'] = batch['profiles'][i]['source_url']
+        results.append(result)
+    batch['imports'] = results
+    temp = path.with_suffix('.tmp')
+    temp.write_text(json.dumps(batch, indent=2))
+    temp.replace(path)
+    return jsonify(results=results)
+
+@app.get('/collection')
+def collection_page():
+    historical_path = DATA / 'collection' / 'public-professionals.json'
+    historical = json.loads(historical_path.read_text()) if historical_path.exists() else None
+    history = request.args.get('history') == '1'
+    path = historical_path if history else DATA / 'collection' / 'public-discovery.json'
+    manifest = json.loads(path.read_text()) if path.exists() else None
+    rules = json.loads((ROOT / 'collection_rules.json').read_text())
+    surnames = [line.strip() for line in (ROOT / 'surname_examples.txt').read_text().splitlines()
+                if line.strip() and not line.startswith('#')]
+    historical_count = len(historical['results']) if historical else 0
+    if manifest and not history and rules.get('education_filter_enabled', False):
+        from collection_filters import education_eligibility
+        verified = []
+        for row in manifest['results']:
+            evidence = row.get('education_filter', {})
+            result = education_eligibility({'education': [{
+                'degree_level': 'undergraduate', 'completion_status': 'completed',
+                'completion_year': evidence.get('undergraduate_completion_year'),
+                'source_url': evidence.get('education_source'),
+            }]})
+            if evidence.get('eligible') and result['eligible']:
+                verified.append(row)
+        manifest = dict(manifest, results=verified[:20], education_rules=rules,
+                        summary={'downloaded':sum(bool(r.get('ok')) for r in verified[:20])})
+    return render_template('collection.html', batch=manifest, rules=rules, surnames=surnames,
+                           history=history, historical_count=historical_count)
+
 @app.get('/dataset')
 def dataset_page(): return render_template('dataset.html')
 
 @app.get('/api/dataset')
 def dataset_results():
     name = request.args.get('set', 'research')
-    if name not in ('research', 'fei', 'service', 'asian-service'):
+    if name not in ('research', 'fei', 'service', 'asian-service', 'creators', 'creator-service', 'small-creators'):
         return jsonify(error='Unknown dataset'), 400
     path = DATA / name / 'rankings.json'
     if not path.exists():
@@ -111,6 +201,14 @@ def celebrity_image(filename):
 @app.get('/dataset-images/asian_celebrities/<filename>')
 def asian_celebrity_image(filename):
     return send_from_directory(DATA / 'asian_celebrities' / 'images', filename)
+
+@app.get('/dataset-images/creators/<filename>')
+def creator_image(filename):
+    return send_from_directory(DATA / 'creators' / 'images', filename)
+
+@app.get('/dataset-images/small-creators/<filename>')
+def small_creator_image(filename):
+    return send_from_directory(DATA / 'small-creators' / 'images', filename)
 
 @app.get('/api/pictures')
 def pictures():

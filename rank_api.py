@@ -36,8 +36,8 @@ def analyze(session, image, token):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--dataset', choices=['research', 'fei', 'celebrities', 'asian_research', 'asian_celebrities'], default='research')
-    parser.add_argument('--output', choices=['service', 'asian-service'], default='service')
+    parser.add_argument('--dataset', choices=['research', 'fei', 'celebrities', 'asian_research', 'asian_celebrities', 'creators'], default='research')
+    parser.add_argument('--output', choices=['service', 'asian-service', 'creator-service'], default='service')
     parser.add_argument('--append', action='store_true', help='Merge into existing service results and rerank.')
     parser.add_argument('--limit', type=int, default=20, help='Maximum photos; 3 service credits each.')
     parser.add_argument('--fei-upload-permitted', action='store_true',
@@ -47,6 +47,8 @@ def main():
         parser.error('--limit must be 1–2800')
     if args.dataset == 'fei' and not args.fei_upload_permitted:
         parser.error('FEI prohibits redistribution. Obtain permission for third-party processing first, then use --fei-upload-permitted.')
+    if (args.dataset == 'creators') != (args.output == 'creator-service'):
+        parser.error('Use --dataset creators with --output creator-service to keep creator results separate.')
     token = os.environ.get('ATTRACTIVENESS_API_TOKEN')
     if not token:
         raise SystemExit('Set ATTRACTIVENESS_API_TOKEN locally using an issued API token. Request access: https://attractivenessai.com/api . No images sent.')
@@ -93,7 +95,7 @@ def main():
                     method='Subjective service estimates, 0–10 scale. Sorted by raw score; adjusted scores are shown separately. No validation on this dataset.',
                     evaluation_note='This third-party model has not been validated on this local dataset. Scores are subjective estimates.',
                     model_source='https://attractivenesstest.com/api')
-    if previous:
+    if previous and args.output != 'creator-service':
         manifest['dataset'] = 'Adult research faces + celebrity comparison'
         manifest['attribution'] = previous['attribution'] + ' ' + original['attribution']
         manifest['source'] = previous['source']
